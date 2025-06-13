@@ -1,4 +1,4 @@
-# scripts/plot_pca.R
+# scripts/pca.R
 # Purpose: Generate PCA plots to visualize the overall structure of the data.
 
 # --- 1. Load Libraries ---

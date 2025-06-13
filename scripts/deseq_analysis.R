@@ -1,4 +1,4 @@
-# scripts/run_deseq_analysis.R
+# scripts/deseq_analysis.R
 # Purpose: Perform the core differential expression analysis and save results
 # in multiple formats for downstream scripts.
 
@@ -51,7 +51,9 @@ comparisons <- list(
   "r1_hcy_vs_met"    = c("group", "R1_Hcy", "R1_Met"),
   "r8_hcy_vs_met"    = c("group", "R8_Hcy", "R8_Met"),
   "r1_vs_293t_met"   = c("group", "R1_Met", "293T_Met"),
-  "r8_vs_468_met"    = c("group", "R8_Met", "468_Met")
+  "r8_vs_468_met"    = c("group", "R8_Met", "468_Met"),
+  "r1_vs_293t_hcy"   = c("group", "R1_Hcy", "293T_Hcy"),
+  "r8_vs_468_hcy"    = c("group", "R8_Hcy", "468_Hcy")
 )
 
 alpha <- 0.05 # Set the significance threshold
@@ -83,4 +85,3 @@ for (name in names(comparisons)) {
 }
 
 print("Script finished. All results are saved in the 'results/' directory.")
-

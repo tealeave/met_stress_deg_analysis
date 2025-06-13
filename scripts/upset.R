@@ -1,4 +1,4 @@
-# scripts/plot_upset.R
+# scripts/upset.R
 # Purpose: Generate an Upset plot to visualize intersections of Hcy response genes.
 
 # --- 1. Load Libraries ---
@@ -6,7 +6,7 @@
 library(UpSetR)
 
 # --- 2. Main Script: Generate Upset Plot ---
-dir.create("results", showWarnings = FALSE)
+dir.create("results/upset_plot", showWarnings = FALSE, recursive = TRUE)
 
 # Helper function to read a gene list from a file
 read_gene_list <- function(filepath) {
@@ -15,14 +15,14 @@ read_gene_list <- function(filepath) {
 
 # Load the four gene lists related to Hcy response
 list_input <- list(
-  `293T` = read_gene_list("results/gene_lists_txt/293t_hcy_vs_met.txt"),
-  `R1`   = read_gene_list("results/gene_lists_txt/r1_hcy_vs_met.txt"),
-  `468`  = read_gene_list("results/gene_lists_txt/468_hcy_vs_met.txt"),
-  `R8`   = read_gene_list("results/gene_lists_txt/r8_hcy_vs_met.txt")
+  `293t_hcy_vs_met` = read_gene_list("results/gene_lists_txt/293t_hcy_vs_met.txt"),
+  `r1_hcy_vs_met`   = read_gene_list("results/gene_lists_txt/r1_hcy_vs_met.txt"),
+  `468_hcy_vs_met`  = read_gene_list("results/gene_lists_txt/468_hcy_vs_met.txt"),
+  `r8_hcy_vs_met`   = read_gene_list("results/gene_lists_txt/r8_hcy_vs_met.txt")
 )
 
 # Create the Upset plot
-png("results/upset_hcy_response.png", width = 1000, height = 600, res = 100)
+png("results/upset_plot/upset_hcy_response.png", width = 1000, height = 600, res = 100)
 upset(
   fromList(list_input),
   order.by = "freq",
