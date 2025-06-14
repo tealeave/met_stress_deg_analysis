@@ -47,7 +47,9 @@ p1 <- plotPCA(vsd, intgroup="group") +
   labs(title = "PCA colored by Group") +
   geom_point(size=4) + # Make points larger
   theme_bw(base_size = 14) +
-  coord_fixed() # Fix aspect ratio
+  coord_fixed() + # Fix aspect ratio
+  scale_x_continuous(expand = expansion(add = 5)) +
+  scale_y_continuous(expand = expansion(add = 5))
 ggsave("results/pca_plots/pca_by_group.png", plot=p1, width=8, height=8) # Make plot square
 
 # --- Plot 2: Color by 'cell_line' ---
@@ -55,7 +57,9 @@ p2 <- plotPCA(vsd, intgroup="cell_line") +
   labs(title = "PCA colored by Cell Line") +
   geom_point(size=4) +
   theme_bw(base_size = 14) +
-  coord_fixed() # Fix aspect ratio
+  coord_fixed() + # Fix aspect ratio
+  scale_x_continuous(expand = expansion(add = 5)) +
+  scale_y_continuous(expand = expansion(add = 5))
 ggsave("results/pca_plots/pca_by_cell_line.png", plot=p2, width=8, height=8) # Make plot square
 
 # --- Plot 3: Color by 'treatment' ---
@@ -63,7 +67,9 @@ p3 <- plotPCA(vsd, intgroup="treatment") +
   labs(title = "PCA colored by Treatment") +
   geom_point(size=4) +
   theme_bw(base_size = 14) +
-  coord_fixed() # Fix aspect ratio
+  coord_fixed() + # Fix aspect ratio
+  scale_x_continuous(expand = expansion(add = 5)) +
+  scale_y_continuous(expand = expansion(add = 5))
 ggsave("results/pca_plots/pca_by_treatment.png", plot=p3, width=8, height=8) # Make plot square
 
 # --- Plot 4: Color by 'batch' ---
@@ -71,8 +77,9 @@ p4 <- plotPCA(vsd, intgroup="batch") +
   labs(title = "PCA colored by Batch") +
   geom_point(size=4) +
   theme_bw(base_size = 14) +
-  coord_fixed() # Fix aspect ratio
+  coord_fixed() + # Fix aspect ratio
+  scale_x_continuous(expand = expansion(add = 5)) +
+  scale_y_continuous(expand = expansion(add = 5))
 ggsave("results/pca_plots/pca_by_batch.png", plot=p4, width=8, height=8) # Make plot square
 
 print("All PCA plots have been generated in 'results/pca_plots/'.")
-

@@ -1,4 +1,4 @@
-# scripts/run_gsea.R
+# scripts/gsea.R
 # Purpose: Run Gene Set Enrichment Analysis (GSEA) on all DESeq2 results.
 # This script automatically finds all DESeq2 output files, runs GSEA for
 # Gene Ontology (GO) and KEGG pathways, and saves the results into
@@ -42,8 +42,9 @@ perform_gsea <- function(deseq_results, comparison_name, output_dir) {
                     verbose       = FALSE)
 
     if (!is.null(gse_go) && nrow(gse_go@result) > 0) {
-      # Split results into up-regulated and down-regulated pathways
       gse_go_results <- as.data.frame(gse_go@result)
+      
+      # Split results into up-regulated and down-regulated pathways
       up_regulated <- subset(gse_go_results, enrichmentScore > 0)
       down_regulated <- subset(gse_go_results, enrichmentScore < 0)
 
@@ -51,11 +52,16 @@ perform_gsea <- function(deseq_results, comparison_name, output_dir) {
       write.csv(up_regulated, file = file.path(output_dir, paste0("gsea_go_", comparison_name, "_upregulated.csv")), row.names = FALSE)
       write.csv(down_regulated, file = file.path(output_dir, paste0("gsea_go_", comparison_name, "_downregulated.csv")), row.names = FALSE)
       
+      # Dynamically calculate plot height
+      # Base height of 4, plus 0.5 per category shown (up to 20 for each direction)
+      num_cats_to_plot <- min(nrow(up_regulated), 20) + min(nrow(down_regulated), 20)
+      dynamic_height <- max(7, 4 + num_cats_to_plot * 0.3)
+
       # Create and save a dotplot faceted by sign (activated vs. suppressed)
-      # Increased height to prevent label overlap
       gse_plot <- dotplot(gse_go, showCategory = 20, split = ".sign") + facet_grid(. ~ .sign)
-      ggsave(file.path(output_dir, paste0("gsea_go_", comparison_name, ".png")), plot = gse_plot, width = 12, height = 12, dpi = 300)
-      print("GO GSEA complete. Results and plot saved.")
+      ggsave(file.path(output_dir, paste0("gsea_go_", comparison_name, ".png")), plot = gse_plot, width = 12, height = dynamic_height, dpi = 300)
+      
+      print(paste("GO GSEA complete. Results and plot (height:", round(dynamic_height, 1), "in) saved."))
     } else {
       print("No significant GO terms found.")
     }
@@ -80,8 +86,9 @@ perform_gsea <- function(deseq_results, comparison_name, output_dir) {
                           verbose       = FALSE)
 
       if (!is.null(gse_kegg) && nrow(gse_kegg@result) > 0) {
-        # Split results into up-regulated and down-regulated pathways
         gse_kegg_results <- as.data.frame(gse_kegg@result)
+
+        # Split results into up-regulated and down-regulated pathways
         up_regulated_kegg <- subset(gse_kegg_results, enrichmentScore > 0)
         down_regulated_kegg <- subset(gse_kegg_results, enrichmentScore < 0)
 
@@ -89,10 +96,15 @@ perform_gsea <- function(deseq_results, comparison_name, output_dir) {
         write.csv(up_regulated_kegg, file = file.path(output_dir, paste0("gsea_kegg_", comparison_name, "_upregulated.csv")), row.names = FALSE)
         write.csv(down_regulated_kegg, file = file.path(output_dir, paste0("gsea_kegg_", comparison_name, "_downregulated.csv")), row.names = FALSE)
 
+        # Dynamically calculate plot height
+        num_kegg_cats_to_plot <- min(nrow(up_regulated_kegg), 20) + min(nrow(down_regulated_kegg), 20)
+        dynamic_height_kegg <- max(7, 4 + num_kegg_cats_to_plot * 0.5)
+
         # Create and save KEGG dotplot
         kegg_plot <- dotplot(gse_kegg, showCategory = 20, split = ".sign") + facet_grid(. ~ .sign)
-        ggsave(file.path(output_dir, paste0("gsea_kegg_", comparison_name, ".png")), plot = kegg_plot, width = 12, height = 12, dpi = 300)
-        print("KEGG GSEA complete. Results and plot saved.")
+        ggsave(file.path(output_dir, paste0("gsea_kegg_", comparison_name, ".png")), plot = kegg_plot, width = 12, height = dynamic_height_kegg, dpi = 300)
+        
+        print(paste("KEGG GSEA complete. Results and plot (height:", round(dynamic_height_kegg, 1), "in) saved."))
       } else {
         print("No significant KEGG pathways found.")
       }
@@ -141,4 +153,3 @@ if (length(rds_files) == 0) {
 }
 
 print("All GSEA analyses are complete.")
-

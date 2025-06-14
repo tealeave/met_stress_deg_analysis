@@ -22,9 +22,18 @@ rownames(col_data) <- col_data$sample_name
 count_data <- count_data[, rownames(col_data)]
 
 # Create a 'group' variable by combining cell_line and treatment
+# This single factor will contain all experimental conditions.
 col_data$group <- factor(paste0(col_data$cell_line, "_", col_data$treatment))
 
-# Create the DESeqDataSet object with the corrected design
+# ---
+# NOTE ON DESIGN: The 'batch' variable (exp1/exp2) is completely confounded
+# with the cell lines (R1/293T are only in exp1, R8/468 are only in exp2).
+# Adding '~ batch + group' would cause a model matrix error.
+#
+# The correct approach for this design is to use '~ group' and make
+# comparisons ONLY within each batch. The batch effect is controlled for
+# by the nature of the contrasts themselves.
+# ---
 dds <- DESeqDataSetFromMatrix(countData = count_data,
                               colData = col_data,
                               design = ~ group)
@@ -44,16 +53,20 @@ dir.create("results/deseq_objects", showWarnings = FALSE, recursive = TRUE)
 dir.create("results/tables_csv", showWarnings = FALSE, recursive = TRUE)
 dir.create("results/gene_lists_txt", showWarnings = FALSE, recursive = TRUE)
 
-# Define a list of comparisons to make
+# Define a list of comparisons to make.
+# Each of these comparisons is made between groups from the SAME batch,
+# which is the correct way to analyze this confounded experiment.
 comparisons <- list(
+  # Comparisons within batch 'exp2'
   "468_hcy_vs_met"   = c("group", "468_Hcy", "468_Met"),
+  "r8_hcy_vs_met"    = c("group", "R8_Hcy", "R8_Met"),
+  "r8_vs_468_met"    = c("group", "R8_Met", "468_Met"),
+  "r8_vs_468_hcy"    = c("group", "R8_Hcy", "468_Hcy"),
+  # Comparisons within batch 'exp1'
   "293t_hcy_vs_met"  = c("group", "293T_Hcy", "293T_Met"),
   "r1_hcy_vs_met"    = c("group", "R1_Hcy", "R1_Met"),
-  "r8_hcy_vs_met"    = c("group", "R8_Hcy", "R8_Met"),
   "r1_vs_293t_met"   = c("group", "R1_Met", "293T_Met"),
-  "r8_vs_468_met"    = c("group", "R8_Met", "468_Met"),
-  "r1_vs_293t_hcy"   = c("group", "R1_Hcy", "293T_Hcy"),
-  "r8_vs_468_hcy"    = c("group", "R8_Hcy", "468_Hcy")
+  "r1_vs_293t_hcy"   = c("group", "R1_Hcy", "293T_Hcy")
 )
 
 alpha <- 0.05 # Set the significance threshold
