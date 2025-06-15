@@ -86,3 +86,33 @@ For each question, generate separate plots for up-regulated and down-regulated g
 
 ---
 
+## 6. How to Run
+
+1.  **Install Dependencies:**
+    This project uses `renv` to manage R dependencies. To install the required packages, open an R session in the project root and run:
+    ```R
+    renv::restore()
+    ```
+
+2.  **Run the Full Pipeline:**
+
+    You can run the pipeline in two ways:
+
+    **A. From within an R session (recommended for interactive use):**
+    
+    Open an R session in the project root and run:
+    ```R
+    source("scripts/main.R")
+    ```
+
+    **B. From the command line (for automation):**
+
+    Navigate to the project root in your terminal (Zsh, Bash, etc.) and execute the following command:
+    ```sh
+    Rscript scripts/main.R
+    ```
+
+    This will run all scripts in the correct order and generate all results in the `results/` directory and final reports in the `reports/` directory.
+
+---
+

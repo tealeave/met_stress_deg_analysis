@@ -12,7 +12,7 @@ library(here)
 # --- 2. Configuration ---
 # Define significance thresholds
 alpha <- 0.05       # Maximum adjusted p-value
-lfc_threshold <- 1.0 # Minimum absolute log2 fold change
+lfc_threshold <- 0.58 # Minimum absolute log2 fold change (0.58 corresponds to a 1.5-fold change)
 
 # Define directories
 input_dir <- here("results", "tables_csv")

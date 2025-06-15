@@ -1,155 +1,108 @@
-# scripts/gsea.R
-# Purpose: Run Gene Set Enrichment Analysis (GSEA) on all DESeq2 results.
-# This script automatically finds all DESeq2 output files, runs GSEA for
-# Gene Ontology (GO) and KEGG pathways, and saves the results into
-# separate files for up-regulated and down-regulated pathways.
+# scripts/gsea_analysis.R
+# Purpose: Perform Gene Set Enrichment Analysis (GSEA) on the full DESeq2
+# result tables to identify pathways associated with up- or down-regulation.
+# --- VERSION 3: Handles p-values of 0 to prevent infinite rank scores ---
 
 # --- 1. Load Libraries ---
+# if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+# BiocManager::install(c("clusterProfiler", "org.Hs.eg.db", "enrichplot"))
+# install.packages(c("here", "ggplot2", "dplyr", "stringr"))
+
 library(clusterProfiler)
 library(org.Hs.eg.db) # Annotation database for Human
-library(AnnotationDbi)
+library(enrichplot)
+library(here)
 library(ggplot2)
+library(dplyr)
+library(stringr) # For string manipulation
 
-# --- 2. Define the GSEA Function ---
-# This function takes a DESeq2 result object and a comparison name,
-# runs GSEA, and saves the results and plots.
+# --- 2. Configuration ---
+pvalue_cutoff <- 0.05
+output_dir <- here("results", "gsea_analysis")
+input_dir <- here("results", "tables_csv")
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-perform_gsea <- function(deseq_results, comparison_name, output_dir) {
+# --- 3. Helper Function for GSEA ---
+perform_gsea <- function(deseq_results_df, contrast_name) {
+  print(paste("--- Analyzing:", contrast_name, "---"))
 
-  print(paste("--- Starting GSEA for:", comparison_name, "---"))
+  # --- A. Prepare the Ranked Gene List ---
 
-  # A. Prepare the Ranked Gene List
-  # The list is ranked by the 'stat' column from DESeq2 results.
-  # A positive stat value indicates up-regulation, negative is down-regulation.
-  res_gsea <- na.omit(deseq_results)
-  gene_list <- res_gsea$stat
+  # 1. Remove rows with NA p-values
+  ranked_list_df <- deseq_results_df %>% filter(!is.na(pvalue))
   
-  # Clean ENSEMBL IDs by removing version numbers (e.g., "ENSG0000012345.6" -> "ENSG0000012345")
-  names(gene_list) <- gsub("\\..*$", "", rownames(res_gsea))
+  ## FIX: Handle p-values of exactly 0 ##
+  # Find the smallest non-zero p-value in the dataset
+  min_pvalue <- min(ranked_list_df$pvalue[ranked_list_df$pvalue > 0], na.rm = TRUE)
+  # Replace any 0 p-values with a number smaller than the minimum (or a system minimum)
+  # This prevents log10(0) from creating 'Inf' values.
+  ranked_list_df$pvalue[ranked_list_df$pvalue == 0] <- min_pvalue * 0.1
+  # A more robust alternative is to use the machine's smallest representable number:
+  # ranked_list_df$pvalue[ranked_list_df$pvalue == 0] <- .Machine$double.xmin
+
+  # 2. Clean ENSEMBL IDs (remove isoform version)
+  ranked_list_df$ensembl <- gsub("\\..*$", "", ranked_list_df[, 1])
   
-  # Sort the gene list in decreasing order (a GSEA requirement)
-  gene_list <- sort(gene_list, decreasing = TRUE)
+  # 3. Create the ranking metric
+  ranked_list_df$rank_metric <- sign(ranked_list_df$log2FoldChange) * -log10(ranked_list_df$pvalue)
 
-  # B. Run Gene Ontology (GO) GSEA for Biological Processes (BP)
-  print("Running GO GSEA...")
-  tryCatch({
-    gse_go <- gseGO(geneList      = gene_list,
-                    OrgDb         = org.Hs.eg.db,
-                    keyType       = "ENSEMBL",
-                    ont           = "BP", # Biological Process
-                    pAdjustMethod = "BH",
-                    pvalueCutoff  = 0.05,
-                    verbose       = FALSE)
-
-    if (!is.null(gse_go) && nrow(gse_go@result) > 0) {
-      gse_go_results <- as.data.frame(gse_go@result)
-      
-      # Split results into up-regulated and down-regulated pathways
-      up_regulated <- subset(gse_go_results, enrichmentScore > 0)
-      down_regulated <- subset(gse_go_results, enrichmentScore < 0)
-
-      # Save the split results to separate CSV files
-      write.csv(up_regulated, file = file.path(output_dir, paste0("gsea_go_", comparison_name, "_upregulated.csv")), row.names = FALSE)
-      write.csv(down_regulated, file = file.path(output_dir, paste0("gsea_go_", comparison_name, "_downregulated.csv")), row.names = FALSE)
-      
-      # Dynamically calculate plot height
-      # Base height of 4, plus 0.5 per category shown (up to 20 for each direction)
-      num_cats_to_plot <- min(nrow(up_regulated), 20) + min(nrow(down_regulated), 20)
-      dynamic_height <- max(7, 4 + num_cats_to_plot * 0.3)
-
-      # Create and save a dotplot faceted by sign (activated vs. suppressed)
-      gse_plot <- dotplot(gse_go, showCategory = 20, split = ".sign") + facet_grid(. ~ .sign)
-      ggsave(file.path(output_dir, paste0("gsea_go_", comparison_name, ".png")), plot = gse_plot, width = 12, height = dynamic_height, dpi = 300)
-      
-      print(paste("GO GSEA complete. Results and plot (height:", round(dynamic_height, 1), "in) saved."))
-    } else {
-      print("No significant GO terms found.")
-    }
-  }, error = function(e) {
-    print(paste("An error occurred during GO GSEA:", e$message))
-  })
-
-  # C. Run KEGG Pathway GSEA
-  print("Running KEGG GSEA...")
+  # 4. Map ENSEMBL IDs to Entrez IDs
+  mapped_ids <- bitr(ranked_list_df$ensembl, fromType="ENSEMBL", toType="ENTREZID", OrgDb="org.Hs.eg.db", drop = TRUE)
   
-  # Convert ENSEMBL to ENTREZ IDs for KEGG analysis
-  entrez_ids <- mapIds(org.Hs.eg.db, keys = names(gene_list), column = "ENTREZID", keytype = "ENSEMBL", multiVals = "first")
-  gene_list_entrez <- gene_list[!is.na(entrez_ids)]
-  names(gene_list_entrez) <- entrez_ids[!is.na(entrez_ids)]
-
-  if (length(gene_list_entrez) > 0) {
-    tryCatch({
-      gse_kegg <- gseKEGG(geneList      = gene_list_entrez,
-                          organism      = 'hsa', # Homo sapiens
-                          pAdjustMethod = "BH",
-                          pvalueCutoff  = 0.05,
-                          verbose       = FALSE)
-
-      if (!is.null(gse_kegg) && nrow(gse_kegg@result) > 0) {
-        gse_kegg_results <- as.data.frame(gse_kegg@result)
-
-        # Split results into up-regulated and down-regulated pathways
-        up_regulated_kegg <- subset(gse_kegg_results, enrichmentScore > 0)
-        down_regulated_kegg <- subset(gse_kegg_results, enrichmentScore < 0)
-
-        # Save the split results to separate CSV files
-        write.csv(up_regulated_kegg, file = file.path(output_dir, paste0("gsea_kegg_", comparison_name, "_upregulated.csv")), row.names = FALSE)
-        write.csv(down_regulated_kegg, file = file.path(output_dir, paste0("gsea_kegg_", comparison_name, "_downregulated.csv")), row.names = FALSE)
-
-        # Dynamically calculate plot height
-        num_kegg_cats_to_plot <- min(nrow(up_regulated_kegg), 20) + min(nrow(down_regulated_kegg), 20)
-        dynamic_height_kegg <- max(7, 4 + num_kegg_cats_to_plot * 0.5)
-
-        # Create and save KEGG dotplot
-        kegg_plot <- dotplot(gse_kegg, showCategory = 20, split = ".sign") + facet_grid(. ~ .sign)
-        ggsave(file.path(output_dir, paste0("gsea_kegg_", comparison_name, ".png")), plot = kegg_plot, width = 12, height = dynamic_height_kegg, dpi = 300)
-        
-        print(paste("KEGG GSEA complete. Results and plot (height:", round(dynamic_height_kegg, 1), "in) saved."))
-      } else {
-        print("No significant KEGG pathways found.")
+  ranked_list_df <- ranked_list_df %>%
+    inner_join(mapped_ids, by = c("ensembl" = "ENSEMBL")) %>%
+    distinct(ENTREZID, .keep_all = TRUE)
+  
+  # 5. Create and sort the final named vector
+  gene_list_vector <- ranked_list_df$rank_metric
+  names(gene_list_vector) <- ranked_list_df$ENTREZID
+  gene_list_vector <- sort(gene_list_vector, decreasing = TRUE)
+  
+  # --- B. Run GSEA Analysis ---
+  save_gsea_results <- function(gsea_result, type) {
+    if (!is.null(gsea_result) && nrow(gsea_result) > 0) {
+      print(paste("Found", nrow(gsea_result), "significant", type, "terms. Saving results..."))
+      gsea_df <- as.data.frame(gsea_result)
+      write.csv(gsea_df, file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_results.csv")))
+      
+      p1 <- dotplot(gsea_result, showCategory=20, split=".sign") + facet_grid(.~.sign) + labs(title = paste(contrast_name, type, "Enrichment"))
+      ggsave(file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_dotplot.png")), p1, width=12, height=8)
+      
+      p2 <- ridgeplot(gsea_result, showCategory=20) + labs(title = paste(contrast_name, type, "Ridge Plot"))
+      ggsave(file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_ridgeplot.png")), p2, width=12, height=10)
+      
+      top_up <- gsea_df %>% filter(NES > 0) %>% top_n(3, wt = abs(NES)) %>% pull(ID)
+      top_down <- gsea_df %>% filter(NES < 0) %>% top_n(3, wt = abs(NES)) %>% pull(ID)
+      
+      if(length(c(top_up, top_down)) > 0) {
+        p3 <- gseaplot2(gsea_result, geneSetID = c(top_up, top_down), pvalue_table = TRUE)
+        ggsave(file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_gseaplot.png")), p3, width=12, height=10)
       }
-    }, error = function(e) {
-      print(paste("An error occurred during KEGG GSEA:", e$message))
-    })
-  } else {
-    print("No genes could be mapped to ENTREZ IDs for KEGG analysis.")
+    } else {
+      print(paste("No significant", type, "terms found."))
+    }
   }
 
-  print(paste("--- Finished GSEA for:", comparison_name, "---"))
+  # Run for Gene Ontology (GO)
+  gsea_go <- gseGO(geneList=gene_list_vector, OrgDb=org.Hs.eg.db, ont="BP", pvalueCutoff=pvalue_cutoff, minGSSize=15, maxGSSize=500, pAdjustMethod="BH", verbose=FALSE, eps=0)
+  save_gsea_results(gsea_go, "GO")
+
+  # Run for KEGG pathways
+  gsea_kegg <- gseKEGG(geneList=gene_list_vector, organism='hsa', pvalueCutoff=pvalue_cutoff, minGSSize=15, maxGSSize=500, pAdjustMethod="BH", verbose=FALSE, eps=0)
+  save_gsea_results(gsea_kegg, "KEGG")
 }
 
+# --- 4. Run Analysis for All DESeq2 contrasts ---
+contrast_files <- list.files(path = input_dir, pattern = "\\.csv$", full.names = TRUE)
 
-# --- 3. Main Script: Loop Through All Comparisons ---
-
-# Define input and output directories
-rds_dir <- "results/deseq_objects"
-gsea_output_dir <- "results/gsea_results"
-
-# Stop if the input directory doesn't exist
-if (!dir.exists(rds_dir)) {
-  stop("Directory '", rds_dir, "' not found. Please ensure it exists and contains your DESeq2 results.")
+for (file_path in contrast_files) {
+  contrast_name <- gsub("\\.csv$", "", basename(file_path))
+  deseq_results <- read.csv(file_path)
+  perform_gsea(
+    deseq_results_df = deseq_results,
+    contrast_name = contrast_name
+  )
 }
 
-# Create the output directory for GSEA results
-dir.create(gsea_output_dir, showWarnings = FALSE, recursive = TRUE)
-
-# Get a list of all .rds files from the DESeq2 analysis
-rds_files <- list.files(rds_dir, pattern = "\\.rds$", full.names = TRUE)
-
-if (length(rds_files) == 0) {
-  print(paste("No .rds files found in '", rds_dir, "'. No analysis will be run."))
-} else {
-  # Loop over each file, load it, and run the GSEA function
-  for (file_path in rds_files) {
-    # Extract a clean name for the comparison from the file path
-    comparison_name <- gsub("\\.rds$", "", basename(file_path))
-    
-    # Load the DESeq2 result object
-    deseq_results <- readRDS(file_path)
-    
-    # Run our GSEA function
-    perform_gsea(deseq_results, comparison_name, gsea_output_dir)
-  }
-}
-
-print("All GSEA analyses are complete.")
+print("--- GSEA analysis script finished. ---")
+print(paste("Results are saved in:", output_dir))
