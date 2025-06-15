@@ -1,0 +1,3 @@
+"","category","subcategory","ID","Description","GeneRatio","BgRatio","pvalue","p.adjust","qvalue","geneID","Count"
+"hsa04668","Environmental Information Processing","Signal transduction","hsa04668","TNF signaling pathway","14/289","103/6349",0.000212009507843863,0.0357797505926072,0.0335495416011154,"JUN/CFLAR/CCL20/IRF1/EDN1/TNF/ATF6B/TNFAIP3/IL6/CREB3L2/FOS/RPS6KA5/NOD2/MAP2K3",14
+"hsa04970","Organismal Systems","Digestive system","hsa04970","Salivary secretion","10/289","58/6349",0.000244230379471722,0.0357797505926072,0.0335495416011154,"SLC9A1/ATP1B1/CD38/ADRB2/TRPV6/MUC5B/ATP2B1/ADCY9/VAMP2/LPO",10
