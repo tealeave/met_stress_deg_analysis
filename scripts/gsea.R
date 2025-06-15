@@ -65,8 +65,14 @@ perform_gsea <- function(deseq_results_df, contrast_name) {
       gsea_df <- as.data.frame(gsea_result)
       write.csv(gsea_df, file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_results.csv")))
       
+      # Calculate dynamic height based on the number of pathways to plot
+      n_up <- sum(gsea_df$NES > 0)
+      n_down <- sum(gsea_df$NES < 0)
+      pathways_to_plot <- min(n_up, 20) + min(n_down, 20)
+      dynamic_height <- max(7, min(15, 5 + pathways_to_plot * 0.28)) # Clamp height
+
       p1 <- dotplot(gsea_result, showCategory=20, split=".sign") + facet_grid(.~.sign) + labs(title = paste(contrast_name, type, "Enrichment"))
-      ggsave(file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_dotplot.png")), p1, width=12, height=8)
+      ggsave(file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_dotplot.png")), p1, width=12, height=dynamic_height)
       
       p2 <- ridgeplot(gsea_result, showCategory=20) + labs(title = paste(contrast_name, type, "Ridge Plot"))
       ggsave(file.path(output_dir, paste0(contrast_name, "_GSEA_", type, "_ridgeplot.png")), p2, width=12, height=10)
