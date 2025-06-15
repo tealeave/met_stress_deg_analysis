@@ -1,0 +1,2 @@
+"","category","subcategory","ID","Description","GeneRatio","BgRatio","pvalue","p.adjust","qvalue","geneID","Count"
+"hsa04216","Cellular Processes","Cell growth and death","hsa04216","Ferroptosis","3/22","39/6349",0.00030445881988701,0.0161363174540115,0.0157036654468037,"SLC39A14/HMOX1/SAT1",3

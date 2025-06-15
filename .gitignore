@@ -198,6 +198,3 @@ cython_debug/
 .RData
 .DS_Store
 
-# results
-results/
-reports/
