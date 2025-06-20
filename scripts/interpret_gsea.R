@@ -17,67 +17,68 @@ label_threshold <- 0.10
 
 # --- 3. Helper Functions ---
 
-# MODIFIED: Major update to the scatterplot function to improve label clarity.
+# MODIFIED: Function updated to increase point and label font size.
 create_nes_scatterplot <- function(data, x_col, y_col, p_adj_x_col, p_adj_y_col, title, filename, top_n_labels = 20) {
   if (nrow(data) == 0) {
     print(paste("Skipping plot", basename(filename), "- no data."))
     return()
   }
-  
-  # --- NEW LABELING LOGIC ---
-  # Instead of labeling all significant points, we now identify the 'top_n_labels'
-  # most significant pathways to avoid clutter.
-  
-  # 1. Filter for pathways that are significant in both datasets.
-  significant_pathways <- data %>%
-    filter(!!sym(p_adj_x_col) < label_threshold & !!sym(p_adj_y_col) < label_threshold)
-  
-  # 2. If there are significant pathways, rank them and select the top N.
-  if(nrow(significant_pathways) > 0) {
-    top_pathways_to_label <- significant_pathways %>%
-      # Create a ranking metric (e.g., product of p-values). Smaller is more significant.
-      mutate(rank_metric = !!sym(p_adj_x_col) * !!sym(p_adj_y_col)) %>%
-      # Select the top N pathways based on this rank.
-      slice_min(order_by = rank_metric, n = top_n_labels)
-      
-    # 3. Create the final label column in the original data.
-    data <- data %>%
-      mutate(label = if_else(ID %in% top_pathways_to_label$ID, Description, ""))
-  } else {
-    # If no pathways meet the significance criteria, create an empty label column.
-    data$label <- ""
-  }
-  
+
+  # --- CLASSIFY PATHWAYS FOR FACETING ---
+  data <- data %>%
+    mutate(regulation_group = case_when(
+      !!sym(x_col) > 0 & !!sym(y_col) > 0 ~ "Commonly Upregulated",
+      !!sym(x_col) < 0 & !!sym(y_col) < 0 ~ "Commonly Downregulated",
+      TRUE ~ "Other"
+    )) %>%
+    filter(regulation_group != "Other")
+
+
+  # --- LABELING LOGIC (Adapted for facets) ---
+  top_pathways_to_label <- data %>%
+    group_by(regulation_group) %>%
+    mutate(rank_metric = !!sym(p_adj_x_col) * !!sym(p_adj_y_col)) %>%
+    slice_min(order_by = rank_metric, n = top_n_labels / 2)
+
+  data <- data %>%
+    mutate(label = if_else(ID %in% top_pathways_to_label$ID, Description, ""))
+
   p <- ggplot(data, aes(x = !!sym(x_col), y = !!sym(y_col))) +
-    geom_point(aes(color = !!sym(p_adj_y_col)), alpha = 0.7) +
+    # CHANGED: Added 'size = 3' to make the points larger. Default is ~1.5.
+    geom_point(aes(color = !!sym(p_adj_y_col)), alpha = 0.5, size = 2.4) +
     
-    # Adjusted repel parameters for the new labeling strategy on a larger plot
+    # --- ADD FACETING ---
+    facet_wrap(~ regulation_group, scales = "free") +
+    
+    # CHANGED: Increased 'size = 4.5' from 3.5 to make the font larger.
     geom_text_repel(
-      aes(label = label), 
-      size = 3.5,           
-      max.overlaps = Inf, # Allow unlimited overlaps
-      box.padding = 1.0,    # Increased padding for more space
-      point.padding = 0.2,  # Adds space between point and label
-      min.segment.length = 0,
-      force = 2 # Increase repulsion force
-    ) +
+          aes(label = label),
+          size = 4,
+          # max.overlaps = 4, # Allow all labels to be shown
+          box.padding = 1.0,
+          point.padding = 0.2,
+          min.segment.length = -1,
+          force = 5,
+        ) +
     
-    scale_color_gradient(low = "red", high = "blue") +
+    scale_color_gradient(low = "red", high = "blue", name = "Adj. P-value") +
     geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
     labs(
-      title = title, 
-      subtitle = "Pathways in top-right (common up) and bottom-left (common down)", 
-      x = paste("NES:", x_col), 
-      y = paste("NES:", y_col), 
-      color = "Adj. P-value"
+      title = title,
+      subtitle = "Pathways commonly up-regulated (right) and down-regulated (left)",
+      x = paste("NES:", x_col),
+      y = paste("NES:", y_col)
     ) +
-    theme_bw(base_size = 14)
-    
-  # MODIFIED: Increased plot size to provide more space for labels.
-  ggsave(filename, p, width = 12, height = 11)
+    theme_bw(base_size = 14) +
+    theme(strip.background = element_rect(fill="grey90", color = "grey90"),
+          strip.text = element_text(face = "bold"))
+
+  # Increased plot size to provide more space for labels.
+  ggsave(filename, p, width = 14, height = 8)
   print(paste("Saved plot:", filename))
 }
+
 
 create_nes_heatmap <- function(data, title, filename) {
   if (nrow(data) == 0) {
