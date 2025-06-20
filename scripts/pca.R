@@ -82,4 +82,24 @@ p4 <- plotPCA(vsd, intgroup="batch") +
   scale_y_continuous(expand = expansion(add = 5))
 ggsave("results/pca_plots/pca_by_batch.png", plot=p4, width=8, height=8) # Make plot square
 
+# --- Plot 5: Color by 'cell_line' with custom colors ---
+# Define the named vector for custom colors to ensure correct mapping
+custom_colors <- c(
+    "468" = "#8616f0",
+    "293T" = "#018520",
+    "R8" = "#05bbf7",
+    "R1" = "#de6f00"
+)
+
+p5 <- plotPCA(vsd, intgroup="cell_line") +
+  labs(title = "PCA colored by Cell Line (Custom Colors)") +
+  geom_point(size=4) +
+  theme_bw(base_size = 14) +
+  coord_fixed() + # Fix aspect ratio
+  scale_x_continuous(expand = expansion(add = 5)) +
+  scale_y_continuous(expand = expansion(add = 5)) +
+  scale_color_manual(values = custom_colors) # Apply the custom color palette
+ggsave("results/pca_plots/pca_by_cell_line_custom_color.png", plot=p5, width=8, height=8)
+
+
 print("All PCA plots have been generated in 'results/pca_plots/'.")
