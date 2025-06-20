@@ -17,7 +17,9 @@ label_threshold <- 0.10
 
 # --- 3. Helper Functions ---
 
+
 # MODIFIED: Function updated to increase point and label font size.
+# --- AND to dynamically change plot size if only one facet is present. ---
 create_nes_scatterplot <- function(data, x_col, y_col, p_adj_x_col, p_adj_y_col, title, filename, top_n_labels = 20) {
   if (nrow(data) == 0) {
     print(paste("Skipping plot", basename(filename), "- no data."))
@@ -33,6 +35,11 @@ create_nes_scatterplot <- function(data, x_col, y_col, p_adj_x_col, p_adj_y_col,
     )) %>%
     filter(regulation_group != "Other")
 
+  # If, after filtering, no data remains, exit.
+  if (nrow(data) == 0) {
+    print(paste("Skipping plot", basename(filename), "- no commonly regulated data."))
+    return()
+  }
 
   # --- LABELING LOGIC (Adapted for facets) ---
   top_pathways_to_label <- data %>%
@@ -74,9 +81,17 @@ create_nes_scatterplot <- function(data, x_col, y_col, p_adj_x_col, p_adj_y_col,
     theme(strip.background = element_rect(fill="grey90", color = "grey90"),
           strip.text = element_text(face = "bold"))
 
-  # Increased plot size to provide more space for labels.
-  ggsave(filename, p, width = 14, height = 8)
-  print(paste("Saved plot:", filename))
+  # --- NEW: Dynamically set plot dimensions ---
+  # Check how many unique regulation groups are present in the final data.
+  num_groups <- length(unique(data$regulation_group))
+  
+  # If only one group (e.g., only upregulated), use a squarer plot. Otherwise, use a wider plot.
+  plot_width <- if (num_groups == 1) 8 else 14
+  plot_height <- 8
+  
+  # Use the dynamic dimensions.
+  ggsave(filename, p, width = plot_width, height = plot_height)
+  print(paste("Saved plot:", filename, "with dimensions", plot_width, "x", plot_height))
 }
 
 
