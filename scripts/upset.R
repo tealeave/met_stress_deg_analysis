@@ -12,6 +12,8 @@
 library(UpSetR)
 library(here) # For robust file path management
 library(biomaRt) # For converting gene IDs to gene names
+library(ggplot2)
+library(grid)  # for unit()
 
 # --- 2. Configuration ---
 # Define significance thresholds. Genes must meet both criteria to be included.
@@ -90,6 +92,7 @@ for (file in result_files) {
   }
 }
 
+# Ensure the lists are in the correct order for plotting
 q1_q2_up_sets <- q1_q2_up_sets[q1_q2_comparisons]
 q1_q2_down_sets <- q1_q2_down_sets[q1_q2_comparisons]
 
@@ -140,36 +143,65 @@ get_and_print_genenames(unique_down_r1_r8, "Genes uniquely DOWNREGULATED in both
 
 # --- 5. Plotting Functions ---
 
+# UPDATED: Increased all visual elements and added padding by increasing plot dimensions.
 generate_upset_plot <- function(gene_sets, title, file_path) {
   if (length(gene_sets) > 1) {
-    png(file_path, width = 12, height = 8, units = "in", res = 300)
-    print(upset(fromList(gene_sets), nsets = length(gene_sets), nintersects = 40, order.by = "freq", mainbar.y.label = "Intersection Size", sets.x.label = "Total Genes in Set", text.scale = 1.5, main.bar.color = "skyblue", sets.bar.color = "lightblue", matrix.color = "gray23", shade.color = "whitesmoke"))
+    # Increased plot dimensions to better accommodate larger fonts and add padding.
+    png(file_path, width = 26, height = 16, units = "in", res = 300)
+    print(upset(
+      fromList(gene_sets), 
+      nsets = length(gene_sets), 
+      nintersects = 40, 
+      order.by = "freq", 
+      mainbar.y.label = "Intersection Size", 
+      sets.x.label = "Total Genes in Set", 
+      # Increased dot and line sizes in the matrix.
+      point.size = 7,
+      line.size = 3,
+      # Increased and specified text scales for better readability (~2.2x).
+      # Set "sets.x.label" (set_size_title) to be smaller than set names.
+      text.scale = c(intersection_size_title = 4.4, intersection_size_tick_labels = 3.9, set_size_title = 3.9, set_size_tick_labels = 3.9, set_names = 4.9, main_bar_annotation = 4.4),
+      main.bar.color = "skyblue", 
+      sets.bar.color = "lightblue", 
+      matrix.color = "gray23", 
+      shade.color = "whitesmoke"
+    ))
     dev.off()
   } else {
     print(paste("Skipping plot for '", title, "' - fewer than 2 gene sets available.", sep=""))
   }
 }
 
-# CORRECTED: Added keep.order = TRUE to the upset() call to enforce the set order.
+# UPDATED: Increased all visual elements and added padding by increasing plot dimensions.
+# FURTHER UPDATED: Increased the left margin to provide more space for the y-axis labels.
 generate_q1_q2_upset_plot <- function(gene_sets, title, file_path, set_colors, set_order) {
   if (length(gene_sets) > 1) {
-    png(file_path, width = 12, height = 8, units = "in", res = 300)
+    # Increased plot dimensions to better accommodate larger fonts and add padding.
+    png(file_path, width = 28, height = 17, units = "in", res = 300)
+
     print(upset(
-      fromList(gene_sets), 
-      sets = set_order, 
-      keep.order = TRUE, # <-- THIS IS THE FIX: Ensures the sets are not reordered.
-      nsets = length(gene_sets), 
-      nintersects = 40, 
-      order.by = "freq", 
-      mainbar.y.label = "Intersection Size", 
-      sets.x.label = "Total Genes in Set", 
-      text.scale = c(intersection_size_title = 2.0, intersection_size_tick_labels = 2.0, set_size_title = 2.0, set_size_tick_labels = 1.5, set_names = 2.2, main_bar_annotation = 2.2), 
-      main.bar.color = "black", 
-      sets.bar.color = set_colors, 
-      matrix.color = "gray23", 
+      fromList(gene_sets),
+      sets = set_order,
+      keep.order = TRUE,
+      nsets = length(gene_sets),
+      nintersects = 40,
+      order.by = "freq",
+      mainbar.y.label = "Intersection Size",
+      sets.x.label = "Total Genes in Set",
+      # Increased dot and line sizes in the matrix.
+      point.size = 7,
+      line.size = 3,
+      # Increased text scales for better readability (~2.2x).
+      # Set "sets.x.label" (set_size_title) to be smaller than set names.
+      text.scale = c(intersection_size_title = 4.9, intersection_size_tick_labels = 4.9, set_size_title = 4.9, set_size_tick_labels = 4.4, set_names = 5.6, main_bar_annotation = 4.9),
+      main.bar.color = "black",
+      sets.bar.color = set_colors,
+      matrix.color = "gray23",
       shade.color = "whitesmoke"
     ))
+
     dev.off()
+    
   } else {
     print(paste("Skipping plot for '", title, "' - fewer than 2 gene sets available.", sep=""))
   }

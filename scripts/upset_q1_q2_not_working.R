@@ -109,6 +109,7 @@ generate_q1_q2_complex_upset <- function(gene_sets, comparisons, colors, title, 
     print(ComplexUpset::upset(
       upset_data,
       sets_in_plot_order,     # Use the specified set order
+      name = "set",  
       sort_intersections = "descending",
       width_ratio = 0.2,      # Adjust space for set size bars
       base_annotations = list(
@@ -118,12 +119,10 @@ generate_q1_q2_complex_upset <- function(gene_sets, comparisons, colors, title, 
         )
       ),
       set_sizes = (
-          upset_set_size(
-            # FIXED: Replaced deprecated `..count..` with `after_stat(count)`
-            # This is the modern, correct way to use computed variables in ggplot2.
-            geom = geom_bar(aes(y = after_stat(count), fill = set), width = 0.7),
-            position = 'right'
-          )
+        upset_set_size(
+          geom = geom_bar(aes(y = after_stat(count), fill = group), width = 0.7),
+          position = 'right'
+        )
           + scale_fill_manual(values = set_colors_named, guide = 'none')
           + labs(y = 'Total Genes in Set')
           + theme(
